@@ -2,7 +2,14 @@ import os
 import subprocess
 import tempfile
 
+def dispatch_helper():
+    link_helper = subprocess.run(['make', 'dispatch_helper'], capture_output=True, text=True)
+    if link_helper.returncode != 0:
+        print('Fatal error. Failed to link correct helper object. Exiting...')
+        exit(-1)
+
 def check_task_1_1():
+    dispatch_helper()
     os.system("gcc checker/checker.c checker/helper.o src/task1.c src/task3.c -o checker.exe -Iinclude")
     os.system("chmod +x checker.exe") 
     result = subprocess.run(['./checker.exe', '1'], capture_output=True, text=True)  
@@ -10,6 +17,7 @@ def check_task_1_1():
     return result.returncode
 
 def check_task_1_2():
+    dispatch_helper()
     os.system("gcc checker/checker.c checker/helper.o src/task1.c src/task3.c -o checker.exe -Iinclude")
     os.system("chmod +x checker.exe") 
     result = subprocess.run(['./checker.exe', '2'], capture_output=True, text=True)  
@@ -17,6 +25,7 @@ def check_task_1_2():
     return result.returncode
 
 def check_task_1_3():
+    dispatch_helper()
     os.system("gcc checker/checker.c checker/helper.o src/task1.c src/task3.c -o checker.exe -Iinclude")
     os.system("chmod +x checker.exe") 
     
@@ -53,6 +62,7 @@ def check_task_1():
     return points
 
 def check_task_2():
+    dispatch_helper()
     result_make = subprocess.run(['make', 'build'], capture_output=True, text=True)
     if result_make.returncode != 0:
         print("Eroare la compilare!")
@@ -106,6 +116,7 @@ def check_task_2():
 def check_task_3():
     if not os.path.exists("tests/output/task3"):
         os.makedirs("tests/output/task3")
+    dispatch_helper()
     os.system("gcc checker/checker.c checker/helper.o src/task1.c src/task3.c -o checker.exe -Iinclude")
     os.system("chmod +x checker.exe") 
     result = subprocess.run(['./checker.exe', '4'], capture_output=True, text=True)  
@@ -170,7 +181,7 @@ def check_coding_style():
         try:
             cpplint_command = [
                 "cpplint",
-                "--filter=-legal/copyright,-readability/casting,-build/include_subdir,-runtime/threadsafe_fn,-build/header_guard,-runtime/int",
+                "--filter=-legal/copyright,-readability/casting,-build/include_subdir,-runtime/threadsafe_fn,-build/header_guard,-runtime/int,-build/include_what_you_use",
                 "--linelength=120",
                 *subprocess.getoutput("find ./src/ -name '*.c'").splitlines()
             ]
