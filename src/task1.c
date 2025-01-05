@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <math.h>
 #include "task1.h"
+
+// #define DEBUG
 
 secretariat *citeste_secretariat(const char *nume_fisier) {
     FILE *fin = fopen(nume_fisier, "r");
@@ -142,8 +144,23 @@ secretariat *citeste_secretariat(const char *nume_fisier) {
                 courses_count++;
             }
         }
-        bigboi->studenti[i].medie_generala = (float)((int)(grades / (float)courses_count * (float)ROUNDING_PRECISION)) /
-        (float)ROUNDING_PRECISION;
+        float avg = grades / (float)courses_count;
+
+        // int inter_avg = (int)(avg * ROUNDING_PRECISION);
+        // if (inter_avg % LAST_DIGIT_GETTER >= HALF) {
+        //     avg = (float)(inter_avg) / ROUNDING_PRECISION2 / ROUNDING_PRECISION2 + (float)INCREMENT;
+        // } else {
+        //     avg = (float)(inter_avg) / ROUNDING_PRECISION2 / ROUNDING_PRECISION2;
+        // }
+        // bigboi->studenti[i].medie_generala = avg;
+
+        int rounded = (int)(avg * ROUNDING_PRECISION + INCREMENT);
+        bigboi->studenti[i].medie_generala = ((float)rounded / ROUNDING_PRECISION);
+
+        #ifdef DEBUG
+            printf("STUDENT %d: AVG: %f ROUNDED AVG: %d Value to insert: %f\n",
+            bigboi->studenti[i].id, avg, rounded, (float)rounded / ROUNDING_PRECISION);
+        #endif
     }
 
     fclose(fin);

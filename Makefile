@@ -3,7 +3,7 @@ FLAGS = -Wall -g -Wextra
 COMPILER = gcc
 
 build:
-	$(COMPILER) $(FLAGS) src/*.c -o tema3 -Iinclude
+	$(COMPILER) $(FLAGS) src/*.c -o tema3 -Iinclude -lm
 
 clean:
 	rm -f tema3	
@@ -15,12 +15,8 @@ dispatch_helper:
 	base_dir=$$(pwd); \
 	echo "Detected system: OS=$$os, ARCH=$$arch"; \
 	if [ "$$os" = "Darwin" ]; then \
-	    if [ "$$arch" = "aarch64" ] || [ "$$arch" = "arm64" ]; then \
-	        ln -sf "$$base_dir/checker/helper_darwin_arm64.o" "$$base_dir/checker/helper.o"; \
-	    else \
-	        echo "Unsupported architecture for Darwin: $$arch"; \
-	        exit 1; \
-	    fi; \
+	    echo "Darwin is unsupported. Please use Linux VM."; \
+	    exit 1; \
 	elif [ "$$os" = "Linux" ]; then \
 	    if [ "$$arch" = "aarch64" ] || [ "$$arch" = "arm64" ]; then \
 	        ln -sf "$$base_dir/checker/helper_linux_arm64.o" "$$base_dir/checker/helper.o"; \

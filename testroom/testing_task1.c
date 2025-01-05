@@ -1,19 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "../src/task1.h"
-int main() {
-    // if (argc != 2) {
-    //     fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
-    //     exit(EXIT_FAILURE);
-    // }
-    secretariat *bigboi = citeste_secretariat("../tests/db/small.db");
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+    secretariat *bigboi = citeste_secretariat(argv[1]);
     printf("Nr. studenti: %d\n", bigboi->nr_studenti);
     printf("Nr. materii: %d\n", bigboi->nr_materii);
     printf("Nr. inrolari: %d\n", bigboi->nr_inrolari);
     for (int i = 0; i < bigboi->nr_studenti; i++) {
-        printf("Student %d:\nID: %d Name: %s, Year: %d, Status: %c\n", bigboi->studenti[i].id,
+        printf("Student %d:\nID: %d Name: %s, Year: %d, Status: %c, GPA: %.2f\n", bigboi->studenti[i].id,
         bigboi->studenti[i].id, bigboi->studenti[i].nume, bigboi->studenti[i].an_studiu,
-        bigboi->studenti[i].statut);
+        bigboi->studenti[i].statut, bigboi->studenti[i].medie_generala);
     }
     for (int i = 0; i < bigboi->nr_materii; i++) {
         printf("Course %d:\nID: %d, Name: %s, Prof: %s\n", bigboi->materii[i].id,

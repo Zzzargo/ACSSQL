@@ -8,7 +8,10 @@
 #define NOTA_LABORATOR 0
 #define NOTA_PARTIAL 1
 #define NOTA_FINAL 2
-#define ROUNDING_PRECISION 100
+#define LAST_DIGIT_GETTER 10
+#define HALF 5
+#define ROUNDING_PRECISION 100.0f
+#define INCREMENT 0.555555f  // Many tears were shed here
 
 secretariat *citeste_secretariat(const char *nume_fisier);
 
