@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdarg.h>
 #include <math.h>
+
 #define MAX_COMMAND_LENGTH 100
 #define MAX_COMAMND_TYPE_LENGTH 10
 #define MAX_COLUMN_NAME_LENGTH 15
@@ -166,11 +167,11 @@ bool check_student(char *condition_column, char *condition_operator, char *condi
                 conditions_met = false;
             }
         } else if (strcmp(condition_operator, ">=")) {
-            if (atof(condition_value) < slave->medie_generala) {
+            if (atof(condition_value) > slave->medie_generala) {
                 conditions_met = false;
             }
         } else if (strcmp(condition_operator, "<=")) {
-            if (atof(condition_value) > slave->medie_generala) {
+            if (atof(condition_value) < slave->medie_generala) {
                 conditions_met = false;
             }
         } else {
@@ -646,6 +647,229 @@ int conditions_count, char **conditions) {
     }
 }
 
+void handle_update(secretariat *bigboi, char *table, char *column_to_update, char *value_to_assign,
+int conditions_count, char **conditions) {
+    #ifdef DEBUG
+        printf("INSIDE HANDLE UPDATE\n");
+    #endif
+
+    bool conditions_met = true;
+    if (strcmp(table, "studenti") == 0) {
+        if (strcmp(column_to_update, "id") == 0) {
+            fprintf(stderr, "Cannot update id column\n");
+            exit(EXIT_FAILURE);
+        }
+        for (int i = 0; i < bigboi->nr_studenti; i++) {
+            conditions_met = true;
+            // First check if the conditions are met
+
+            for (int j = 0; j < conditions_count; j++) {
+                // We need to copy the condition because strtok modifies the string
+                char *condition = malloc(MAX_CONDITION_LENGTH * sizeof(char));
+                snprintf(condition, MAX_CONDITION_LENGTH, "%s", conditions[j]);
+
+                #ifdef DEBUG
+                    printf("INSIDE HANDLE UPDATE. CONDITION READ: %s\n", condition);
+                #endif
+
+                char *condition_column = strtok(condition, " ");
+                char *condition_operator = strtok(NULL, " ");
+                char *condition_value = strtok(NULL, "\0");
+
+                #ifdef DEBUG
+                    printf(
+                    "INSIDE HANDLE UPDATE. CONDITION TO BE PASSED TO CHECK_CONDITIONS: %s %s %s\n",
+                    condition_column, condition_operator, condition_value);
+                #endif
+
+                bool curr_condition_met = check_conditions(condition_column, condition_operator, condition_value,
+                STUDENTS_TABLE, bigboi->studenti[i]);
+
+                conditions_met = curr_condition_met && conditions_met;
+                free(condition);
+            }
+
+            // For some reason if i compose the if statement in one line, it doesn't work
+            if (strcmp(column_to_update, "nume") == 0) {
+                #ifdef DEBUG
+                    printf("INSIDE HANDLE UPDATE. Trying to update name\n");
+                #endif
+
+                if (conditions_met) {
+                    snprintf(bigboi->studenti[i].nume, MAX_VALUE_LENGTH, "%s", value_to_assign);
+
+                    #ifdef DEBUG
+                        printf("INSIDE HANDLE UPDATE. Student %d now has name %s\n", bigboi->studenti[i].id,
+                        bigboi->studenti[i].nume);
+                    #endif
+                }
+            } else if (strcmp(column_to_update, "an_studiu") == 0) {
+                if (conditions_met) {
+                    bigboi->studenti[i].an_studiu = atoi(value_to_assign);
+                    #ifdef DEBUG
+                        printf("INSIDE HANDLE UPDATE. Student %d now has an_studiu %d\n", bigboi->studenti[i].id,
+                        bigboi->studenti[i].an_studiu);
+                    #endif
+                }
+            } else if (strcmp(column_to_update, "statut") == 0) {
+                if (conditions_met) {
+                    bigboi->studenti[i].statut = *value_to_assign;
+
+                    #ifdef DEBUG
+                        printf("INSIDE HANDLE UPDATE. Student %d now has statut %c\n", bigboi->studenti[i].id,
+                        bigboi->studenti[i].statut);
+                    #endif
+                }
+            } else if (strcmp(column_to_update, "medie_generala") == 0) {
+                if (conditions_met) {
+                    bigboi->studenti[i].medie_generala = (float)atof(value_to_assign);
+
+                    #ifdef DEBUG
+                        printf("INSIDE HANDLE UPDATE. Student %d now has medie_generala %f\n", bigboi->studenti[i].id,
+                        bigboi->studenti[i].medie_generala);
+                    #endif
+                }
+            } else {
+                fprintf(stderr, "Invalid column name.");
+                exit(EXIT_FAILURE);
+            }
+        }
+    } else if (strcmp(table, "materii") == 0) {
+        if (strcmp(column_to_update, "id") == 0) {
+            fprintf(stderr, "Cannot update id column\n");
+            exit(EXIT_FAILURE);
+        }
+        for (int i = 0; i < bigboi->nr_materii; i++) {
+            // First check if the conditions are met
+
+            for (int j = 0; j < conditions_count; j++) {
+                // We need to copy the condition because strtok modifies the string
+                char *condition = malloc(MAX_CONDITION_LENGTH * sizeof(char));
+                snprintf(condition, MAX_CONDITION_LENGTH, "%s", conditions[j]);
+
+                #ifdef DEBUG
+                    printf("INSIDE HANDLE UPDATE. CONDITION READ: %s\n", condition);
+                #endif
+
+                char *condition_column = strtok(condition, " ");
+                char *condition_operator = strtok(NULL, " ");
+                char *condition_value = strtok(NULL, "\0");
+
+                #ifdef DEBUG
+                    printf(
+                    "INSIDE HANDLE UPDATE. CONDITION TO BE PASSED TO CHECK_CONDITIONS: %s %s %s\n",
+                    condition_column, condition_operator, condition_value);
+                #endif
+
+                conditions_met = check_conditions(condition_column, condition_operator, condition_value,
+                COURSES_TABLE, bigboi->materii[i]);
+                free(condition);
+            }
+
+            if (strcmp(column_to_update, "nume") == 0) {
+                if (conditions_met) {
+                    snprintf(bigboi->materii[i].nume, MAX_VALUE_LENGTH, "%s", value_to_assign);
+
+                    #ifdef DEBUG
+                        printf("INSIDE HANDLE UPDATE. Course %d now has name %s\n", bigboi->materii[i].id,
+                        bigboi->materii[i].nume);
+                    #endif
+                }
+            } else if (strcmp(column_to_update, "nume_titular") == 0) {
+                if (conditions_met) {
+                    snprintf(bigboi->materii[i].nume_titular, MAX_VALUE_LENGTH, "%s", value_to_assign);
+
+                    #ifdef DEBUG
+                        printf("INSIDE HANDLE UPDATE. Course %d now has nume_titular %s\n", bigboi->materii[i].id,
+                        bigboi->materii[i].nume_titular);
+                    #endif
+                }
+            } else {
+                fprintf(stderr, "Invalid column name.");
+                exit(EXIT_FAILURE);
+            }
+        }
+    } else if (strcmp(table, "inrolari") == 0) {
+        // if (strcmp(column_to_update, "id_student") == 0 || strcmp(column_to_update, "id_materie") == 0) {
+        //     fprintf(stderr, "Cannot update id column\n");
+        //     exit(EXIT_FAILURE);
+        // }
+        for (int i = 0; i < bigboi->nr_inrolari; i++) {
+            // First check if the condition is met
+
+            for (int j = 0; j < conditions_count; j++) {
+                // We need to copy the condition because strtok modifies the string
+                char *condition = malloc(MAX_CONDITION_LENGTH * sizeof(char));
+                snprintf(condition, MAX_CONDITION_LENGTH, "%s", conditions[j]);
+
+                #ifdef DEBUG
+                    printf("INSIDE HANDLE UPDATE. CONDITION READ: %s\n", condition);
+                #endif
+
+                char *condition_column = strtok(condition, " ");
+                char *condition_operator = strtok(NULL, " ");
+                char *condition_value = strtok(NULL, "\0");
+
+                #ifdef DEBUG
+                    printf(
+                    "INSIDE HANDLE UPDATE. CONDITION TO BE PASSED TO CHECK_CONDITIONS: %s %s %s\n",
+                    condition_column, condition_operator, condition_value);
+                #endif
+
+                conditions_met = check_conditions(condition_column, condition_operator, condition_value,
+                ENROLLMENTS_TABLE, bigboi->inrolari[i]);
+                free(condition);
+            }
+
+            if (strcmp(column_to_update, "note") == 0) {
+                if (conditions_met) {
+                    // First get the grades from the value_to_assign string
+                    float *grades = malloc(GRADE_COUNT * sizeof(float));
+                    // Also, we need a copy of the value_to_assign string so we can use strtok
+                    char *value_to_assign_copy = malloc(MAX_VALUE_LENGTH);
+                    memcpy(value_to_assign_copy, value_to_assign, MAX_VALUE_LENGTH);
+                    grades[NOTA_LABORATOR] = (float)atof(strtok(value_to_assign_copy, " "));
+                    grades[NOTA_PARTIAL] = (float)atof(strtok(NULL, " "));
+                    grades[NOTA_FINAL] = (float)atof(strtok(NULL, "\0"));
+
+                    #ifdef DEBUG
+                        printf("INSIDE HANDLE UPDATE. Grades gotten from value_to_assign: %.2f %.2f %.2f\n",
+                        grades[NOTA_LABORATOR], grades[NOTA_PARTIAL], grades[NOTA_FINAL]);
+                    #endif
+
+                    bigboi->inrolari[i].note[NOTA_LABORATOR] = grades[NOTA_LABORATOR];
+                    bigboi->inrolari[i].note[NOTA_PARTIAL] = grades[NOTA_PARTIAL];
+                    bigboi->inrolari[i].note[NOTA_FINAL] = grades[NOTA_FINAL];
+
+                    #ifdef DEBUG
+                        printf("INSIDE HANDLE UPDATE. Student %d now has grades %f %f %f for course %d\n",
+                        bigboi->inrolari[i].id_student, bigboi->inrolari[i].note[NOTA_LABORATOR],
+                        bigboi->inrolari[i].note[NOTA_PARTIAL], bigboi->inrolari[i].note[NOTA_FINAL],
+                        bigboi->inrolari[i].id_materie);
+                    #endif
+
+                    free(grades);
+                    free(value_to_assign_copy);
+                }
+            } else if (strcmp(column_to_update, "id_student") == 0) {
+                if (conditions_met) {
+                    bigboi->inrolari[i].id_student = atoi(value_to_assign);
+                }
+            } else if (strcmp(column_to_update, "id_materie") == 0) {
+                if (conditions_met) {
+                    bigboi->inrolari[i].id_materie = atoi(value_to_assign);
+                }
+            } else {
+                fprintf(stderr, "Invalid column name.");
+                exit(EXIT_FAILURE);
+            }
+        }
+    } else {
+        fprintf(stderr, "Invalid table name.");
+        exit(EXIT_FAILURE);
+    }
+}
+
 void process_command(secretariat *bigboi, char command[]) {
     char *table = malloc(sizeof(char) * MAX_TABLE_NAME_LENGTH);
 
@@ -879,10 +1103,159 @@ void process_command(secretariat *bigboi, char command[]) {
         free(selected_columns);
 
     } else if (strcmp(command_type, "UPDATE") == 0) {
-        // UPDATE
-        printf("COMMAND IS UPDATE\n");
+        #ifdef DEBUG
+            printf("INSIDE PROCESS COMMAND. COMMAND IS UPDATE\n");
+        #endif
+
+        word_in_command = strtok(NULL, " ");  // Get the table name
+        snprintf(table, MAX_TABLE_NAME_LENGTH, "%s", word_in_command);
+
+        #ifdef DEBUG
+            printf("Table to be updated: %s\n", table);
+        #endif
+
+        word_in_command = strtok(NULL, " ");  // Get the SET keyword
+        if (strcmp(word_in_command, "SET") != 0) {
+            fprintf(stderr, "Error: Expected SET keyword after table name.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        word_in_command = strtok(NULL, " ");  // Consume the SET keyword. Get the column to be updated
+        char *column_to_update = malloc(MAX_COLUMN_NAME_LENGTH * sizeof(char));
+        snprintf(column_to_update, MAX_COLUMN_NAME_LENGTH, "%s", word_in_command);
+
+        #ifdef DEBUG
+            printf("Column to be updated: %s\n", column_to_update);
+        #endif
+
+        word_in_command = strtok(NULL, " ");  // Get the assignment operator (=)
+        if (strcmp(word_in_command, "=") != 0) {
+            fprintf(stderr, "Error: Expected assignment operator (=) after column name.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        char *value_to_assign = malloc(MAX_VALUE_LENGTH * sizeof(char));
+        if ((strcmp(column_to_update, "nume") == 0 && strcmp(table, "studenti") == 0) ||
+        strcmp(column_to_update, "nume_titular") == 0) {
+            // Reading two words
+            char *surname = malloc(MAX_VALUE_LENGTH * sizeof(char));
+            char *name = malloc(MAX_VALUE_LENGTH * sizeof(char));
+            word_in_command = strtok(NULL, " ");  // Get the surname
+            if (strcspn(word_in_command, "\"") == 0) {  // If the word starts with a quotation mark (")
+                snprintf(surname, MAX_VALUE_LENGTH, "%s", word_in_command + 1);  // Remove it
+            } else {
+                snprintf(surname, MAX_VALUE_LENGTH, "%s", word_in_command);
+            }
+
+            word_in_command = strtok(NULL, " ");  // Get the name
+            word_in_command[strcspn(word_in_command, "\"")] = '\0';  // Remove the quotation marks (") if present
+
+            snprintf(name, MAX_VALUE_LENGTH, "%s", word_in_command);
+
+            // Concatenate the words into a single string and store it in value_to_assign
+            snprintf(value_to_assign, MAX_VALUE_LENGTH, "%s %s", surname, name);
+
+            free(surname);
+            free(name);
+        } else if (strcmp(column_to_update, "note") == 0) {
+            // Reading three numbers(words)
+            char *lab_grade = malloc(MAX_GRADE_LENGTH * sizeof(char));
+            word_in_command = strtok(NULL, " ");  // Get the first grade
+            snprintf(lab_grade, MAX_GRADE_LENGTH, "%s", word_in_command);
+
+            char *midterm_grade = malloc(MAX_GRADE_LENGTH * sizeof(char));
+            word_in_command = strtok(NULL, " ");  // Get the second grade
+            snprintf(midterm_grade, MAX_GRADE_LENGTH, "%s", word_in_command);
+
+            char *final_grade = malloc(MAX_GRADE_LENGTH * sizeof(char));
+            word_in_command = strtok(NULL, " ");  // Get the third grade
+            snprintf(final_grade, MAX_GRADE_LENGTH, "%s", word_in_command);
+
+            // Concatenate the grades into a single string and store it in value_to_assign
+            snprintf(value_to_assign, MAX_VALUE_LENGTH, "%s %s %s", lab_grade, midterm_grade, final_grade);
+
+            free(lab_grade);
+            free(midterm_grade);
+            free(final_grade);
+        } else {
+            // Reading one word
+            word_in_command = strtok(NULL, " ");  // Get the value to be assigned
+            snprintf(value_to_assign, MAX_VALUE_LENGTH, "%s", word_in_command);
+        }
+
+        #ifdef DEBUG
+            printf("Value to be assigned: %s\n", value_to_assign);
+        #endif
+
+        word_in_command = strtok(NULL, " ");  // Get the WHERE keyword
+        if (strcmp(word_in_command, "WHERE") != 0) {
+            fprintf(stderr, "Error: Expected WHERE keyword after assignment.\n");
+            exit(EXIT_FAILURE);
+        }
+        word_in_command = strtok(NULL, " ");  // Consume the WHERE keyword
+
+        char **conditions = NULL;
+        int conditions_count = 0;
+
+        while (word_in_command != NULL) {
+            conditions_count++;
+            if (conditions_count > 1) {  // Expected AND keyword
+                if (strcmp(word_in_command, "AND") != 0) {
+                    fprintf(stderr, "Error: Expected AND keyword after condition.\n");
+                    exit(EXIT_FAILURE);
+                } else {
+                    word_in_command = strtok(NULL, " ");  // Consume the AND
+                    char **temp = NULL;
+                    temp = realloc(conditions, (conditions_count) * sizeof(char *));
+                    if (temp != NULL) {
+                        conditions = temp;
+                        conditions[conditions_count - 1] = malloc(MAX_CONDITION_LENGTH * sizeof(char));
+                    } else {
+                        fprintf(stderr, "Failed reallocating memory for the conditions.\n");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+            }
+
+            if (conditions_count == 1) {
+                // For the first condition allocate memory
+                conditions = malloc(sizeof(char *));
+                conditions[0] = malloc(MAX_CONDITION_LENGTH * sizeof(char));
+            }
+
+            char *condition_column = malloc(MAX_COLUMN_NAME_LENGTH * sizeof(char));
+            char *condition_operator = malloc(MAX_OPERATOR_LENGTH * sizeof(char));
+            char *condition_value = malloc(MAX_VALUE_LENGTH * sizeof(char));
+            // Get the condition
+            snprintf(condition_column, MAX_COLUMN_NAME_LENGTH, "%s", word_in_command);  // Column name
+            word_in_command = strtok(NULL, " ");  // Operator
+            snprintf(condition_operator, MAX_OPERATOR_LENGTH, "%s", word_in_command);
+            word_in_command = strtok(NULL, " ");  // Value
+            word_in_command[strcspn(word_in_command, ";")] = '\0';  // Remove the semicolon (;) if present
+            snprintf(condition_value, MAX_VALUE_LENGTH, "%s", word_in_command);
+            word_in_command = strtok(NULL, " ");  // Get the next word or NULL
+
+            // Concatenate the condition into a single string and store it in conditions
+            snprintf(conditions[conditions_count - 1], MAX_CONDITION_LENGTH, "%s %s %s", condition_column,
+            condition_operator, condition_value);
+
+            #ifdef DEBUG
+                printf("Condition for UPDATE: %s %s %s\n", condition_column, condition_operator, condition_value);
+            #endif
+            free(condition_column);
+            free(condition_operator);
+            free(condition_value);
+        }
+
+        handle_update(bigboi, table, column_to_update, value_to_assign, conditions_count, conditions);
+
+        free(column_to_update);
+        free(value_to_assign);
+        for (int i = 0; i < conditions_count; i++) {
+            free(conditions[i]);
+        }
+        free(conditions);
     } else if (strcmp(command_type, "DELETE") == 0) {
-        // DELETE
         printf("COMMAND IS DELETE\n");
     }
 

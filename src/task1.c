@@ -146,6 +146,7 @@ secretariat *citeste_secretariat(const char *nume_fisier) {
         }
         float avg = grades / (float)courses_count;
 
+        // OLD CODE. WILL BE REMOVED BUT NOT NOW
         // int inter_avg = (int)(avg * ROUNDING_PRECISION);
         // if (inter_avg % LAST_DIGIT_GETTER >= HALF) {
         //     avg = (float)(inter_avg) / ROUNDING_PRECISION2 / ROUNDING_PRECISION2 + (float)INCREMENT;
