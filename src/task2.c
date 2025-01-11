@@ -282,6 +282,11 @@ bool check_course(char *condition_column, char *condition_operator, char *condit
 
 bool check_enrollment(char *condition_column, char *condition_operator, char *condition_value, inrolare *enrollment) {
     bool conditions_met = true;
+
+    #ifdef DEBUG
+        printf("CHECK ENROLLMENT. Condition: %s %s %s\n", condition_column, condition_operator, condition_value);
+    #endif
+
     if (strcmp(condition_column, "id_student") == 0) {
         if (strcmp(condition_operator, "=") == 0) {
             if (atoi(condition_value) != enrollment->id_student) {
@@ -344,6 +349,11 @@ bool check_enrollment(char *condition_column, char *condition_operator, char *co
         char *curr_grades = malloc(MAX_VALUE_LENGTH * sizeof(char));
         snprintf(curr_grades, MAX_VALUE_LENGTH, "%.2f %.2f %.2f", enrollment->note[NOTA_LABORATOR],
         enrollment->note[NOTA_PARTIAL], enrollment->note[NOTA_FINAL]);
+
+        #ifdef DEBUG
+            printf("CHECK ENROLLMENT GRADES. Current enrollment grades: %s\n", curr_grades);
+        #endif
+
         if (strcmp(condition_operator, "=") == 0) {
             if (strcmp(condition_value, curr_grades) != 0) {
                 conditions_met = false;
@@ -402,11 +412,23 @@ char table, ...) {
         }
         case COURSES_TABLE: {
             materie course = va_arg(opt_args, materie);
+
+            #ifdef DEBUG
+                printf("CHECKING CONDITIONS FOR COURSE: %d %s %s\n", course.id, course.nume, course.nume_titular);
+            #endif
+
             conditions_met = check_course(condition_column, condition_operator, condition_value, &course);
             break;
         }
         case ENROLLMENTS_TABLE: {
             inrolare enrollment = va_arg(opt_args, inrolare);
+
+            #ifdef DEBUG
+                printf("CHECKING CONDITIONS FOR ENROLLMENT: %d %d %.2f %.2f %.2f\n", enrollment.id_student,
+                enrollment.id_materie, enrollment.note[NOTA_LABORATOR], enrollment.note[NOTA_PARTIAL],
+                enrollment.note[NOTA_FINAL]);
+            #endif
+
             conditions_met = check_enrollment(condition_column, condition_operator, condition_value, &enrollment);
             break;
         }
@@ -741,7 +763,7 @@ int conditions_count, char **conditions) {
         }
         for (int i = 0; i < bigboi->nr_materii; i++) {
             // First check if the conditions are met
-
+            conditions_met = true;
             for (int j = 0; j < conditions_count; j++) {
                 // We need to copy the condition because strtok modifies the string
                 char *condition = malloc(MAX_CONDITION_LENGTH * sizeof(char));
@@ -761,8 +783,9 @@ int conditions_count, char **conditions) {
                     condition_column, condition_operator, condition_value);
                 #endif
 
-                conditions_met = check_conditions(condition_column, condition_operator, condition_value,
+                bool curr_conditions_met = check_conditions(condition_column, condition_operator, condition_value,
                 COURSES_TABLE, bigboi->materii[i]);
+                conditions_met = curr_conditions_met && conditions_met;
                 free(condition);
             }
 
@@ -796,6 +819,7 @@ int conditions_count, char **conditions) {
         // }
         for (int i = 0; i < bigboi->nr_inrolari; i++) {
             // First check if the condition is met
+            conditions_met = true;
 
             for (int j = 0; j < conditions_count; j++) {
                 // We need to copy the condition because strtok modifies the string
@@ -816,8 +840,9 @@ int conditions_count, char **conditions) {
                     condition_column, condition_operator, condition_value);
                 #endif
 
-                conditions_met = check_conditions(condition_column, condition_operator, condition_value,
+                bool curr_conditions_met = check_conditions(condition_column, condition_operator, condition_value,
                 ENROLLMENTS_TABLE, bigboi->inrolari[i]);
+                conditions_met = curr_conditions_met && conditions_met;
                 free(condition);
             }
 
@@ -850,6 +875,29 @@ int conditions_count, char **conditions) {
 
                     free(grades);
                     free(value_to_assign_copy);
+
+                    // Now we need to update the average for the student whose enrollment was updated
+                    for (int j = 0; j < bigboi->nr_studenti; j++) {
+                        float grades = 0;
+                        int courses_count = 0;
+                        for (int k = 0; k < bigboi->nr_inrolari; k++) {
+                            if (bigboi->inrolari[k].id_student == bigboi->studenti[j].id) {
+                                grades += bigboi->inrolari[k].note[NOTA_LABORATOR] +
+                                bigboi->inrolari[k].note[NOTA_PARTIAL] + bigboi->inrolari[k].note[NOTA_FINAL];
+                                courses_count++;
+                            }
+                        }
+                        if (courses_count > 0) {
+                            float avg = grades / (float)courses_count;
+                            int rounded = (int)(avg * ROUNDING_PRECISION + INCREMENT);
+                            bigboi->studenti[j].medie_generala = ((float)rounded / ROUNDING_PRECISION);
+                        }
+
+                        #ifdef DEBUG
+                            printf("STUDENT %d: AVG: %f ROUNDED AVG: %d Value to insert: %f\n",
+                            bigboi->studenti[i].id, avg, rounded, (float)rounded / ROUNDING_PRECISION);
+                        #endif
+                    }
                 }
             } else if (strcmp(column_to_update, "id_student") == 0) {
                 if (conditions_met) {
@@ -867,6 +915,263 @@ int conditions_count, char **conditions) {
     } else {
         fprintf(stderr, "Invalid table name.");
         exit(EXIT_FAILURE);
+    }
+}
+
+void handle_delete(secretariat *bigboi, char *table, int conditions_count, char **conditions) {
+    #ifdef DEBUG
+        printf("INSIDE HANDLE DELETE\n");
+    #endif
+
+    bool conditions_met = true;
+
+    if (strcmp(table, "studenti") == 0) {
+        for (int i = 0; i < bigboi->nr_studenti; i++) {
+            conditions_met = true;
+
+            // First check if the conditions are met
+            for (int j = 0; j < conditions_count; j++) {
+                // We need to copy the condition because strtok modifies the string
+                char *condition = malloc(MAX_CONDITION_LENGTH * sizeof(char));
+                snprintf(condition, MAX_CONDITION_LENGTH, "%s", conditions[j]);
+
+                #ifdef DEBUG
+                    printf("INSIDE HANDLE DELETE. CONDITION READ: %s\n", condition);
+                #endif
+
+                char *condition_column = strtok(condition, " ");
+                char *condition_operator = strtok(NULL, " ");
+                char *condition_value = strtok(NULL, "\0");
+
+                #ifdef DEBUG
+                    printf(
+                    "INSIDE HANDLE DELETE. CONDITION TO BE PASSED TO CHECK_CONDITIONS: %s %s %s\n",
+                    condition_column, condition_operator, condition_value);
+                #endif
+
+                bool curr_condition_met = check_conditions(condition_column, condition_operator, condition_value,
+                STUDENTS_TABLE, bigboi->studenti[i]);
+
+                conditions_met = curr_condition_met && conditions_met;
+                free(condition);
+            }
+            if (conditions_met) {
+                // First remove the student's enrollments
+                for (int j = 0; j < bigboi->nr_inrolari; j++) {
+                    #ifdef DEBUG
+                        printf("PROBLEMATIC ZONE: i = %d, j = %d\n", i, j);
+                        printf("Student %d: %d %s %d %c %.2f\n", bigboi->studenti[i].id, bigboi->studenti[i].id,
+                        bigboi->studenti[i].nume, bigboi->studenti[i].an_studiu, bigboi->studenti[i].statut,
+                        bigboi->studenti[i].medie_generala);
+                        printf("Enrollment %d: %d %d %.2f %.2f %.2f\n", bigboi->inrolari[j].id_student,
+                        bigboi->inrolari[j].id_student, bigboi->inrolari[j].id_materie,
+                        bigboi->inrolari[j].note[NOTA_LABORATOR], bigboi->inrolari[j].note[NOTA_PARTIAL],
+                        bigboi->inrolari[j].note[NOTA_FINAL]);
+                    #endif
+
+                    if (bigboi->inrolari[j].id_student == bigboi->studenti[i].id) {
+                        // Could have called handle_delete here but it would be much more expensive
+                        #ifdef DEBUG
+                            printf("ANOTHER PROBLEMATIC ZONE. i = %d, j = %d\n", i, j);
+                            printf("INSIDE HANDLE DELETE. Deleting enrollment %d %d %.2f %.2f %2.f\n",
+                            bigboi->inrolari[j].id_student, bigboi->inrolari[j].id_materie,
+                            bigboi->inrolari[j].note[NOTA_LABORATOR], bigboi->inrolari[j].note[NOTA_PARTIAL],
+                            bigboi->inrolari[j].note[NOTA_FINAL]);
+                        #endif
+
+                        for (int k = j; k < bigboi->nr_inrolari - 1; k++) {
+                            bigboi->inrolari[k] = bigboi->inrolari[k + 1];
+                        }
+                        bigboi->nr_inrolari--;
+
+                        #ifdef DEBUG
+                            printf("Enrollments count: %d\n", bigboi->nr_inrolari);
+                        #endif
+
+                        inrolare *temp = NULL;
+                        temp = realloc(bigboi->inrolari, bigboi->nr_inrolari * sizeof(inrolare));
+                        if (temp == NULL && bigboi->nr_inrolari > 0) {
+                            fprintf(stderr, "Error reallocating memory for enrollments.");
+                            exit(EXIT_FAILURE);
+                        }
+                        bigboi->inrolari = temp;
+                        j--;  // We need to decrement j because we just deleted an enrollment
+                    }
+                }
+
+                // Now delete the student
+                #ifdef DEBUG
+                    printf("Deleting student %d %s %d %c %.2f\nCurrent student count: %d\n", bigboi->studenti[i].id,
+                    bigboi->studenti[i].nume, bigboi->studenti[i].an_studiu, bigboi->studenti[i].statut,
+                    bigboi->studenti[i].medie_generala, bigboi->nr_studenti);
+                #endif
+
+                for (int j = i; j < bigboi->nr_studenti - 1; j++) {
+                    bigboi->studenti[j] = bigboi->studenti[j + 1];
+                }
+                bigboi->nr_studenti--;
+
+                #ifdef DEBUG
+                    printf("Updated student count: %d\n", bigboi->nr_studenti);
+                #endif
+
+                student *temp = NULL;
+                temp = realloc(bigboi->studenti, bigboi->nr_studenti * sizeof(student));
+                if (temp == NULL) {
+                    fprintf(stderr, "Error reallocating memory for students.");
+                    exit(EXIT_FAILURE);
+                } else {
+                    bigboi->studenti = temp;
+                }
+            }
+            // i--;  // We need to decrement i because we just deleted a student(or do we?)
+        }
+    } else if (strcmp(table, "materii") == 0) {
+        for (int i = 0; i < bigboi->nr_materii; i++) {
+            conditions_met = true;
+
+            // First check if the conditions are met
+            for (int j = 0; j < conditions_count; j++) {
+                // We need to copy the condition because strtok modifies the string
+                char *condition = malloc(MAX_CONDITION_LENGTH * sizeof(char));
+                snprintf(condition, MAX_CONDITION_LENGTH, "%s", conditions[j]);
+
+                #ifdef DEBUG
+                    printf("INSIDE HANDLE DELETE. CONDITION READ: %s\n", condition);
+                #endif
+
+                char *condition_column = strtok(condition, " ");
+                char *condition_operator = strtok(NULL, " ");
+                char *condition_value = strtok(NULL, "\0");
+
+                #ifdef DEBUG
+                    printf(
+                    "INSIDE HANDLE DELETE. CONDITION TO BE PASSED TO CHECK_CONDITIONS: %s %s %s\n",
+                    condition_column, condition_operator, condition_value);
+                #endif
+
+                bool curr_condition_met = check_conditions(condition_column, condition_operator, condition_value,
+                COURSES_TABLE, bigboi->materii[i]);
+
+                conditions_met = curr_condition_met && conditions_met;
+                free(condition);
+            }
+            if (conditions_met) {
+                // First we need to delete the enrollments associated with this course
+                for (int j = 0; j < bigboi->nr_inrolari; j++) {
+                    if (bigboi->inrolari[j].id_materie == bigboi->materii[i].id) {
+                        #ifdef DEBUG
+                            printf("INSIDE HANDLE DELETE. Deleting enrollment %d %d %.2f %.2f %.2f\n",
+                            bigboi->inrolari[j].id_student, bigboi->inrolari[j].id_materie,
+                            bigboi->inrolari[j].note[NOTA_LABORATOR], bigboi->inrolari[j].note[NOTA_PARTIAL],
+                            bigboi->inrolari[j].note[NOTA_FINAL]);
+                        #endif
+
+                        for (int k = j; k < bigboi->nr_inrolari - 1; k++) {
+                            bigboi->inrolari[k] = bigboi->inrolari[k + 1];
+                        }
+                        bigboi->nr_inrolari--;
+                        inrolare *temp = NULL;
+                        temp = realloc(bigboi->inrolari, bigboi->nr_inrolari * sizeof(inrolare));
+                        if (temp == NULL) {
+                            fprintf(stderr, "Error reallocating memory for enrollments.");
+                            exit(EXIT_FAILURE);
+                        } else {
+                            bigboi->inrolari = temp;
+                        }
+                        j--;  // We need to decrement j because we just deleted an enrollment
+                    }
+                }
+                // Now delete the course
+                for (int j = i; j < bigboi->nr_materii - 1; j++) {
+                    bigboi->materii[j] = bigboi->materii[j + 1];
+                }
+                bigboi->nr_materii--;
+                materie *temp = NULL;
+                temp = realloc(bigboi->materii, bigboi->nr_materii * sizeof(materie));
+                if (temp == NULL) {
+                    fprintf(stderr, "Error reallocating memory for courses.");
+                    exit(EXIT_FAILURE);
+                } else {
+                    bigboi->materii = temp;
+                }
+            }
+        }
+    } else if (strcmp(table, "inrolari") == 0) {
+        for (int i = 0; i < bigboi->nr_inrolari; i++) {
+            conditions_met = true;
+
+            // First check if the conditions are met
+            for (int j = 0; j < conditions_count; j++) {
+                // We need to copy the condition because strtok modifies the string
+                char *condition = malloc(MAX_CONDITION_LENGTH * sizeof(char));
+                snprintf(condition, MAX_CONDITION_LENGTH, "%s", conditions[j]);
+
+                #ifdef DEBUG
+                    printf("INSIDE HANDLE DELETE. CONDITION READ: %s\n", condition);
+                #endif
+
+                char *condition_column = strtok(condition, " ");
+                char *condition_operator = strtok(NULL, " ");
+                char *condition_value = strtok(NULL, "\0");
+
+                #ifdef DEBUG
+                    printf(
+                    "INSIDE HANDLE DELETE. CONDITION TO BE PASSED TO CHECK_CONDITIONS: %s %s %s\n",
+                    condition_column, condition_operator, condition_value);
+                #endif
+
+                bool curr_condition_met = check_conditions(condition_column, condition_operator, condition_value,
+                ENROLLMENTS_TABLE, bigboi->inrolari[i]);
+
+                conditions_met = curr_condition_met && conditions_met;
+                free(condition);
+            }
+            if (conditions_met) {
+                // Delete the enrollment
+                for (int j = i; j < bigboi->nr_inrolari - 1; j++) {
+                    bigboi->inrolari[j] = bigboi->inrolari[j + 1];
+                }
+                bigboi->nr_inrolari--;
+                inrolare *temp = NULL;
+                temp = realloc(bigboi->inrolari, bigboi->nr_inrolari * sizeof(inrolare));
+                if (temp == NULL) {
+                    fprintf(stderr, "Error reallocating memory for enrollments.");
+                    exit(EXIT_FAILURE);
+                } else {
+                    bigboi->inrolari = temp;
+                }
+                i--;  // We need to decrement i because we just deleted an enrollment
+            }
+        }
+    } else {
+        fprintf(stderr, "Invalid table name.");
+        exit(EXIT_FAILURE);
+    }
+    // Recalculate the students' GPAs
+    for (int i = 0; i < bigboi->nr_studenti; i++) {
+        float grades = 0;
+        int courses_count = 0;
+        for (int j = 0; j < bigboi->nr_inrolari; j++) {
+            if (bigboi->inrolari[j].id_student == bigboi->studenti[i].id) {
+                grades += bigboi->inrolari[j].note[NOTA_LABORATOR] + bigboi->inrolari[j].note[NOTA_PARTIAL] +
+                bigboi->inrolari[j].note[NOTA_FINAL];
+                courses_count++;
+            }
+        }
+        if (courses_count > 0) {
+            float avg = grades / (float)courses_count;
+
+            int rounded = (int)(avg * ROUNDING_PRECISION + INCREMENT);
+            bigboi->studenti[i].medie_generala = ((float)rounded / ROUNDING_PRECISION);
+
+            #ifdef DEBUG
+                printf("STUDENT %d: AVG: %f ROUNDED AVG: %d Value to insert in medie_generala: %f\n",
+                bigboi->studenti[i].id, avg, rounded, (float)rounded / ROUNDING_PRECISION);
+            #endif
+        } else {
+            bigboi->studenti[i].medie_generala = 0;
+        }
     }
 }
 
@@ -1172,7 +1477,8 @@ void process_command(secretariat *bigboi, char command[]) {
             snprintf(final_grade, MAX_GRADE_LENGTH, "%s", word_in_command);
 
             // Concatenate the grades into a single string and store it in value_to_assign
-            snprintf(value_to_assign, MAX_VALUE_LENGTH, "%s %s %s", lab_grade, midterm_grade, final_grade);
+            snprintf(value_to_assign, MAX_VALUE_LENGTH, "%.2f %.2f %.2f", (float)atof(lab_grade),
+            (float)atof(midterm_grade), (float)atof(final_grade));
 
             free(lab_grade);
             free(midterm_grade);
@@ -1230,9 +1536,48 @@ void process_command(secretariat *bigboi, char command[]) {
             snprintf(condition_column, MAX_COLUMN_NAME_LENGTH, "%s", word_in_command);  // Column name
             word_in_command = strtok(NULL, " ");  // Operator
             snprintf(condition_operator, MAX_OPERATOR_LENGTH, "%s", word_in_command);
-            word_in_command = strtok(NULL, " ");  // Value
-            word_in_command[strcspn(word_in_command, ";")] = '\0';  // Remove the semicolon (;) if present
-            snprintf(condition_value, MAX_VALUE_LENGTH, "%s", word_in_command);
+
+            // Get the value
+            if ((strcmp(condition_column, "nume") == 0 && strcmp(table, "studenti") == 0) ||
+            strcmp(condition_column, "nume_titular") == 0) {
+                // Reading two words
+                char *surname = malloc(MAX_VALUE_LENGTH * sizeof(char));
+                char *name = malloc(MAX_VALUE_LENGTH * sizeof(char));
+                word_in_command = strtok(NULL, " ");  // Get the surname
+                snprintf(surname, MAX_VALUE_LENGTH, "%s", word_in_command);
+
+                word_in_command = strtok(NULL, " ");  // Get the name
+                word_in_command[strcspn(word_in_command, ";")] = '\0';  // Remove the semicolon if present
+                snprintf(name, MAX_VALUE_LENGTH, "%s", word_in_command);
+
+                // Concatenate the surname and name into a single string and store it in condition_value
+                snprintf(condition_value, MAX_VALUE_LENGTH, "%s %s", surname, name);
+            } else if (strcmp(condition_column, "note") == 0) {
+                // Reading three numbers(words)
+                char *lab_grade = malloc(MAX_GRADE_LENGTH * sizeof(char));
+                char *midterm_grade = malloc(MAX_GRADE_LENGTH * sizeof(char));
+                char *final_grade = malloc(MAX_GRADE_LENGTH * sizeof(char));
+
+                word_in_command = strtok(NULL, " ");  // Get the first grade
+                snprintf(lab_grade, MAX_GRADE_LENGTH, "%s", word_in_command);
+
+                word_in_command = strtok(NULL, " ");  // Get the second grade
+                snprintf(midterm_grade, MAX_GRADE_LENGTH, "%s", word_in_command);
+
+                word_in_command = strtok(NULL, " ");  // Get the third grade
+                word_in_command[strcspn(word_in_command, ";")] = '\0';  // Remove the semicolon if present
+                snprintf(final_grade, MAX_GRADE_LENGTH, "%s", word_in_command);
+
+                // Concatenate the grades into a single string and store it in condition_value
+                snprintf(condition_value, MAX_VALUE_LENGTH, "%.2f %.2f %.2f", (float)atof(lab_grade),
+                (float)atof(midterm_grade), (float)atof(final_grade));
+            } else {
+                // Reading one word
+                word_in_command = strtok(NULL, " ");
+                word_in_command[strcspn(word_in_command, ";")] = '\0';  // Remove the semicolon (;) if present
+                snprintf(condition_value, MAX_VALUE_LENGTH, "%s", word_in_command);
+            }
+
             word_in_command = strtok(NULL, " ");  // Get the next word or NULL
 
             // Concatenate the condition into a single string and store it in conditions
@@ -1256,7 +1601,127 @@ void process_command(secretariat *bigboi, char command[]) {
         }
         free(conditions);
     } else if (strcmp(command_type, "DELETE") == 0) {
-        printf("COMMAND IS DELETE\n");
+        #ifdef DEBUG
+            printf("INSIDE PROCESS COMMAND. COMMAND IS DELETE\n");
+        #endif
+
+        word_in_command = strtok(NULL, " ");  // Must be FROM
+        if (strcmp(word_in_command, "FROM") != 0) {
+            fprintf(stderr, "Error: Expected FROM keyword after DELETE.\n");
+            exit(EXIT_FAILURE);
+        }
+        word_in_command = strtok(NULL, " ");  // Get the table name
+        snprintf(table, MAX_TABLE_NAME_LENGTH, "%s", word_in_command);
+
+        #ifdef DEBUG
+            printf("Table name: %s\n", table);
+        #endif
+
+        word_in_command = strtok(NULL, " ");  // Get the WHERE keyword
+        if (strcmp(word_in_command, "WHERE") != 0) {
+            fprintf(stderr, "Error: Expected WHERE keyword after DELETE.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        word_in_command = strtok(NULL, " ");  // Consume the WHERE keyword. Get the conditions
+
+        char **conditions = NULL;
+        int conditions_count = 0;
+
+        while (word_in_command != NULL) {
+            conditions_count++;
+            if (conditions_count > 1) {  // Expected AND keyword
+                if (strcmp(word_in_command, "AND") != 0) {
+                    fprintf(stderr, "Error: Expected AND keyword after condition.\n");
+                    exit(EXIT_FAILURE);
+                } else {
+                    word_in_command = strtok(NULL, " ");  // Consume the AND
+                    char **temp = NULL;
+                    temp = realloc(conditions, (conditions_count) * sizeof(char *));
+                    if (temp != NULL) {
+                        conditions = temp;
+                        conditions[conditions_count - 1] = malloc(MAX_CONDITION_LENGTH * sizeof(char));
+                    } else {
+                        fprintf(stderr, "Failed reallocating memory for the conditions.\n");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+            }
+
+            if (conditions_count == 1) {
+                // For the first condition allocate memory
+                conditions = malloc(sizeof(char *));
+                conditions[0] = malloc(MAX_CONDITION_LENGTH * sizeof(char));
+            }
+
+            char *condition_column = malloc(MAX_COLUMN_NAME_LENGTH * sizeof(char));
+            char *condition_operator = malloc(MAX_OPERATOR_LENGTH * sizeof(char));
+            char *condition_value = malloc(MAX_VALUE_LENGTH * sizeof(char));
+            // Get the condition
+            snprintf(condition_column, MAX_COLUMN_NAME_LENGTH, "%s", word_in_command);  // Column name
+            word_in_command = strtok(NULL, " ");  // Operator
+            snprintf(condition_operator, MAX_OPERATOR_LENGTH, "%s", word_in_command);
+
+            // Get the value
+            if ((strcmp(condition_column, "nume") == 0 && strcmp(table, "studenti") == 0) ||
+            strcmp(condition_column, "nume_titular") == 0) {
+                // Reading two words
+                char *surname = malloc(MAX_VALUE_LENGTH * sizeof(char));
+                char *name = malloc(MAX_VALUE_LENGTH * sizeof(char));
+                word_in_command = strtok(NULL, " ");  // Get the surname
+                snprintf(surname, MAX_VALUE_LENGTH, "%s", word_in_command);
+
+                word_in_command = strtok(NULL, " ");  // Get the name
+                word_in_command[strcspn(word_in_command, ";")] = '\0';  // Remove the semicolon if present
+                snprintf(name, MAX_VALUE_LENGTH, "%s", word_in_command);
+
+                // Concatenate the surname and name into a single string and store it in condition_value
+                snprintf(condition_value, MAX_VALUE_LENGTH, "%s %s", surname, name);
+            } else if (strcmp(condition_column, "note") == 0) {
+                // Reading three numbers(words)
+                char *lab_grade = malloc(MAX_GRADE_LENGTH * sizeof(char));
+                char *midterm_grade = malloc(MAX_GRADE_LENGTH * sizeof(char));
+                char *final_grade = malloc(MAX_GRADE_LENGTH * sizeof(char));
+
+                word_in_command = strtok(NULL, " ");  // Get the first grade
+                snprintf(lab_grade, MAX_GRADE_LENGTH, "%s", word_in_command);
+
+                word_in_command = strtok(NULL, " ");  // Get the second grade
+                snprintf(midterm_grade, MAX_GRADE_LENGTH, "%s", word_in_command);
+
+                word_in_command = strtok(NULL, " ");  // Get the third grade
+                word_in_command[strcspn(word_in_command, ";")] = '\0';  // Remove the semicolon if present
+                snprintf(final_grade, MAX_GRADE_LENGTH, "%s", word_in_command);
+
+                // Concatenate the grades into a single string and store it in condition_value
+                snprintf(condition_value, MAX_VALUE_LENGTH, "%.2f %.2f %.2f", (float)atof(lab_grade),
+                (float)atof(midterm_grade), (float)atof(final_grade));
+            } else {
+                // Reading one word
+                word_in_command = strtok(NULL, " ");
+                word_in_command[strcspn(word_in_command, ";")] = '\0';  // Remove the semicolon (;) if present
+                snprintf(condition_value, MAX_VALUE_LENGTH, "%s", word_in_command);
+            }
+
+            word_in_command = strtok(NULL, " ");  // Get the next word or NULL
+
+            // Concatenate the condition into a single string and store it in conditions
+            snprintf(conditions[conditions_count - 1], MAX_CONDITION_LENGTH, "%s %s %s", condition_column,
+            condition_operator, condition_value);
+
+            #ifdef DEBUG
+                printf("Condition for DELETE: %s %s %s\n", condition_column, condition_operator, condition_value);
+            #endif
+
+            free(condition_column);
+            free(condition_operator);
+            free(condition_value);
+        }
+        handle_delete(bigboi, table, conditions_count, conditions);
+        for (int i = 0; i < conditions_count; i++) {
+            free(conditions[i]);
+        }
+        free(conditions);
     }
 
     // Free the memory allocated for the table name
