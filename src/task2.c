@@ -1071,30 +1071,48 @@ void handle_delete(secretariat *bigboi, char *table, int conditions_count, char 
                             bigboi->inrolari[k] = bigboi->inrolari[k + 1];
                         }
                         bigboi->nr_inrolari--;
-                        inrolare *temp = NULL;
-                        temp = realloc(bigboi->inrolari, bigboi->nr_inrolari * sizeof(inrolare));
-                        if (temp == NULL) {
-                            fprintf(stderr, "Error reallocating memory for enrollments.");
-                            exit(EXIT_FAILURE);
+
+                        if (bigboi->nr_inrolari > 0) {
+                            inrolare *temp = NULL;
+                            temp = realloc(bigboi->inrolari, bigboi->nr_inrolari * sizeof(inrolare));
+                            if (temp == NULL) {
+                                fprintf(stderr, "Error reallocating memory for enrollments.");
+                                exit(EXIT_FAILURE);
+                            } else {
+                                bigboi->inrolari = temp;
+                            }
                         } else {
-                            bigboi->inrolari = temp;
+                            free(bigboi->inrolari);
+                            bigboi->inrolari = NULL;
                         }
                         j--;  // We need to decrement j because we just deleted an enrollment
                     }
                 }
-                // Now delete the course
+                // First free the names in the course
+                free(bigboi->materii[i].nume);
+                bigboi->materii[i].nume = NULL;
+                free(bigboi->materii[i].nume_titular);
+                bigboi->materii[i].nume_titular = NULL;
+                // Delete the course by shifting the rest of the courses to the left
                 for (int j = i; j < bigboi->nr_materii - 1; j++) {
                     bigboi->materii[j] = bigboi->materii[j + 1];
                 }
                 bigboi->nr_materii--;
-                materie *temp = NULL;
-                temp = realloc(bigboi->materii, bigboi->nr_materii * sizeof(materie));
-                if (temp == NULL) {
-                    fprintf(stderr, "Error reallocating memory for courses.");
-                    exit(EXIT_FAILURE);
+
+                if (bigboi->nr_materii > 0) {
+                    materie *temp = NULL;
+                    temp = realloc(bigboi->materii, bigboi->nr_materii * sizeof(materie));
+                    if (temp == NULL) {
+                        fprintf(stderr, "Error reallocating memory for courses.");
+                        exit(EXIT_FAILURE);
+                    } else {
+                        bigboi->materii = temp;
+                    }
                 } else {
-                    bigboi->materii = temp;
+                    free(bigboi->materii);
+                    bigboi->materii = NULL;
                 }
+                i--;  // We need to decrement i because we just deleted a course
             }
         }
     } else if (strcmp(table, "inrolari") == 0) {
