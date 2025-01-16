@@ -874,12 +874,12 @@ int conditions_count, char **conditions) {
                             float avg = grades / (float)courses_count;
                             int rounded = (int)(avg * ROUNDING_PRECISION + INCREMENT);
                             bigboi->studenti[j].medie_generala = ((float)rounded / ROUNDING_PRECISION);
-                        }
 
-                        #ifdef DEBUG
+                            #ifdef DEBUG
                             printf("STUDENT %d: AVG: %f ROUNDED AVG: %d Value to insert: %f\n",
                             bigboi->studenti[i].id, avg, rounded, (float)rounded / ROUNDING_PRECISION);
-                        #endif
+                            #endif
+                        }
                     }
                 }
             } else if (strcmp(column_to_update, "id_student") == 0) {
