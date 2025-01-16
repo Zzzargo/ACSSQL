@@ -39,6 +39,7 @@ A C-based secretary tool that implements basic SQL-like operations and encryptio
 - Custom data structures for academic entities
 
 ## 🏗️ Project Structure
+```
 .
 ├── src/
 │   ├── task1.c    # Database reading
@@ -46,6 +47,7 @@ A C-based secretary tool that implements basic SQL-like operations and encryptio
 │   └── task3.c    # Encryption implementation
 ├── include/
     └── structuri.h # Data structures definitions
+```
 ## 🔍 Data Models
 Students: ID, name, year, status, GPA
 Courses: ID, name, professor
