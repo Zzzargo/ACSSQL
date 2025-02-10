@@ -52,10 +52,3 @@ A C-based secretary tool that implements basic SQL-like operations and encryptio
 Students: ID, name, year, status, GPA
 Courses: ID, name, professor
 Enrollments: Student ID, Course ID, grades (lab, midterm, final)
-
-## 💻 Usage
-The makefile from `./testroom` is a helper to test and run each part of the program
-`cd ./testroom
-make`
-For each binary created the prompt to run it is of the format: `./test<#> <database_file>`
-The database files for testing are in `ACSSQL/tests/db`
